@@ -1,9 +1,10 @@
-define('app',['exports'], function (exports) {
+define('app',['exports', './web-api'], function (exports, _webApi) {
   'use strict';
 
   Object.defineProperty(exports, "__esModule", {
     value: true
   });
+  exports.App = undefined;
 
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
@@ -12,8 +13,14 @@ define('app',['exports'], function (exports) {
   }
 
   var App = exports.App = function () {
-    function App() {
+    App.inject = function inject() {
+      return [_webApi.WebAPI];
+    };
+
+    function App(api) {
       _classCallCheck(this, App);
+
+      this.api = api;
     }
 
     App.prototype.configureRouter = function configureRouter(config, router) {
@@ -26,6 +33,149 @@ define('app',['exports'], function (exports) {
     return App;
   }();
 });
+define('contact-detail',['exports', 'aurelia-event-aggregator', './web-api', './messages', './utility'], function (exports, _aureliaEventAggregator, _webApi, _messages, _utility) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.ContactDetail = undefined;
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  }
+
+  var _createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
+  var _class, _temp;
+
+  var ContactDetail = exports.ContactDetail = (_temp = _class = function () {
+    function ContactDetail(api, ea) {
+      _classCallCheck(this, ContactDetail);
+
+      this.api = api;
+      this.ea = ea;
+    }
+
+    ContactDetail.prototype.activate = function activate(params, routeConfig) {
+      var _this = this;
+
+      this.routeConfig = routeConfig;
+
+      return this.api.getContactDetails(params.id).then(function (contact) {
+        _this.contact = contact;
+        _this.routeConfig.navModel.setTitle(contact.firstName);
+        _this.originalContact = JSON.parse(JSON.stringify(contact));
+        _this.ea.publish(new _messages.ContactViewed(_this.contact));
+      });
+    };
+
+    ContactDetail.prototype.save = function save() {
+      var _this2 = this;
+
+      this.api.saveContact(this.contact).then(function (contact) {
+        _this2.contact = contact;
+        _this2.routeConfig.navModel.setTitle(contact.firstName);
+        _this2.originalContact = JSON.parse(JSON.stringify(contact));
+        _this2.ea.publish(new _messages.ContactUpdated(_this2.contact));
+      });
+    };
+
+    ContactDetail.prototype.canDeactivate = function canDeactivate() {
+      if (!(0, _utility.areEqual)(this.originalContact, this.contact)) {
+        var result = confirm('You have unsaved changes. Are you sure you wish to leave?');
+
+        if (!result) {
+          this.ea.publish(new _messages.ContactViewed(this.contact));
+        }
+
+        return result;
+      }
+
+      return true;
+    };
+
+    _createClass(ContactDetail, [{
+      key: 'canSave',
+      get: function get() {
+        return this.contact.firstName && this.contact.lastName && !this.api.isRequesting;
+      }
+    }]);
+
+    return ContactDetail;
+  }(), _class.inject = [_webApi.WebAPI, _aureliaEventAggregator.EventAggregator], _temp);
+});
+define('contact-list',['exports', 'aurelia-event-aggregator', './web-api', './messages'], function (exports, _aureliaEventAggregator, _webApi, _messages) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.ContactList = undefined;
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  }
+
+  var _class, _temp;
+
+  var ContactList = exports.ContactList = (_temp = _class = function () {
+    function ContactList(api, ea) {
+      var _this = this;
+
+      _classCallCheck(this, ContactList);
+
+      this.api = api;
+      this.contacts = [];
+
+      ea.subscribe(_messages.ContactViewed, function (msg) {
+        return _this.select(msg.contact);
+      });
+      ea.subscribe(_messages.ContactUpdated, function (msg) {
+        var id = msg.contact.id;
+        var found = _this.contacts.find(function (x) {
+          return x.id === id;
+        });
+        Object.assign(found, msg.contact);
+      });
+    }
+
+    ContactList.prototype.created = function created() {
+      var _this2 = this;
+
+      this.api.getContactList().then(function (contacts) {
+        return _this2.contacts = contacts;
+      });
+    };
+
+    ContactList.prototype.select = function select(contact) {
+      this.selectedId = contact.id;
+      return true;
+    };
+
+    return ContactList;
+  }(), _class.inject = [_webApi.WebAPI, _aureliaEventAggregator.EventAggregator], _temp);
+});
 define('environment',["exports"], function (exports) {
   "use strict";
 
@@ -36,6 +186,55 @@ define('environment',["exports"], function (exports) {
     debug: true,
     testing: true
   };
+});
+define('loading-indicator',['exports', 'nprogress', 'aurelia-framework'], function (exports, _nprogress, _aureliaFramework) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.LoadingIndicator = undefined;
+
+  var nprogress = _interopRequireWildcard(_nprogress);
+
+  function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+      return obj;
+    } else {
+      var newObj = {};
+
+      if (obj != null) {
+        for (var key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+        }
+      }
+
+      newObj.default = obj;
+      return newObj;
+    }
+  }
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  }
+
+  var LoadingIndicator = exports.LoadingIndicator = (0, _aureliaFramework.decorators)((0, _aureliaFramework.noView)(['nprogress/nprogress.css']), (0, _aureliaFramework.bindable)({ name: 'loading', defaultValue: false })).on(function () {
+    function _class() {
+      _classCallCheck(this, _class);
+    }
+
+    _class.prototype.loadingChanged = function loadingChanged(newValue) {
+      if (newValue) {
+        nprogress.start();
+      } else {
+        nprogress.done();
+      }
+    };
+
+    return _class;
+  }());
 });
 define('main',['exports', './environment'], function (exports, _environment) {
   'use strict';
@@ -74,6 +273,50 @@ define('main',['exports', './environment'], function (exports, _environment) {
       return aurelia.setRoot();
     });
   }
+});
+define('messages',["exports"], function (exports) {
+  "use strict";
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  }
+
+  var ContactUpdated = exports.ContactUpdated = function ContactUpdated(contact) {
+    _classCallCheck(this, ContactUpdated);
+
+    this.contact = contact;
+  };
+
+  var ContactViewed = exports.ContactViewed = function ContactViewed(contact) {
+    _classCallCheck(this, ContactViewed);
+
+    this.contact = contact;
+  };
+});
+define('no-selection',["exports"], function (exports) {
+    "use strict";
+
+    Object.defineProperty(exports, "__esModule", {
+        value: true
+    });
+
+    function _classCallCheck(instance, Constructor) {
+        if (!(instance instanceof Constructor)) {
+            throw new TypeError("Cannot call a class as a function");
+        }
+    }
+
+    var NoSelection = exports.NoSelection = function NoSelection() {
+        _classCallCheck(this, NoSelection);
+
+        this.message = "Please Select a Contact.";
+    };
 });
 define('todo',["exports"], function (exports) {
     "use strict";
@@ -230,41 +473,43 @@ define('web-api',['exports'], function (exports) {
     return WebAPI;
   }();
 });
-define('resources/index',["exports"], function (exports) {
-  "use strict";
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.configure = configure;
-  function configure(config) {}
-});
-define('no-selection',["exports"], function (exports) {
-    "use strict";
-
-    Object.defineProperty(exports, "__esModule", {
-        value: true
-    });
-
-    function _classCallCheck(instance, Constructor) {
-        if (!(instance instanceof Constructor)) {
-            throw new TypeError("Cannot call a class as a function");
-        }
-    }
-
-    var NoSelection = exports.NoSelection = function NoSelection() {
-        _classCallCheck(this, NoSelection);
-
-        this.message = "Please Select a Contact.";
-    };
-});
-define('contact-list',['exports', './web-api'], function (exports, _webApi) {
+define('resources/index',['exports'], function (exports) {
   'use strict';
 
   Object.defineProperty(exports, "__esModule", {
     value: true
   });
-  exports.ContactList = undefined;
+  exports.configure = configure;
+  function configure(config) {
+    config.globalResources(['./elements/loading-indicator']);
+  }
+});
+define('resources/elements/loading-indicator',['exports', 'nprogress', 'aurelia-framework'], function (exports, _nprogress, _aureliaFramework) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.LoadingIndicator = undefined;
+
+  var nprogress = _interopRequireWildcard(_nprogress);
+
+  function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+      return obj;
+    } else {
+      var newObj = {};
+
+      if (obj != null) {
+        for (var key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+        }
+      }
+
+      newObj.default = obj;
+      return newObj;
+    }
+  }
 
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
@@ -272,35 +517,25 @@ define('contact-list',['exports', './web-api'], function (exports, _webApi) {
     }
   }
 
-  var ContactList = exports.ContactList = function () {
-    ContactList.inject = function inject() {
-      return [_webApi.WebAPI];
-    };
-
-    function ContactList(api) {
-      _classCallCheck(this, ContactList);
-
-      this.api = api;
-      this.contacts = [];
+  var LoadingIndicator = exports.LoadingIndicator = (0, _aureliaFramework.decorators)((0, _aureliaFramework.noView)(['nprogress/nprogress.css']), (0, _aureliaFramework.bindable)({ name: 'loading', defaultValue: false })).on(function () {
+    function _class() {
+      _classCallCheck(this, _class);
     }
 
-    ContactList.prototype.created = function created() {
-      var _this = this;
-
-      this.api.getContactList().then(function (contacts) {
-        return _this.contacts = contacts;
-      });
+    _class.prototype.loadingChanged = function loadingChanged(newValue) {
+      if (newValue) {
+        nprogress.start();
+      } else {
+        nprogress.done();
+      }
     };
 
-    ContactList.prototype.select = function select(contact) {
-      this.selectedId = contact.id;
-      return true;
-    };
-
-    return ContactList;
-  }();
+    return _class;
+  }());
 });
-define('text!app.html', ['module'], function(module) { module.exports = "<template><require from=\"bootstrap/css/bootstrap.css\"></require><require from=\"./styles.css\"></require><nav class=\"navbar navbar-default navbar-fixed-top\" role=\"navigation\"><div class=\"navbar-header\"><a class=\"navbar-brand\" href=\"#\"><i class=\"fa fa-user\"></i> <span>Contacts</span></a></div></nav><div class=\"container\"><div class=\"row\"><div class=\"col-md-4\">Contact List Placeholder</div><router-view class=\"col-md-8\"></router-view></div></div></template>"; });
+define('text!app.html', ['module'], function(module) { module.exports = "<template><require from=\"bootstrap/css/bootstrap.css\"></require><require from=\"./styles.css\"></require><require from=\"./contact-list\"></require><nav class=\"navbar navbar-default navbar-fixed-top\" role=\"navigation\"><div class=\"navbar-header\"><a class=\"navbar-brand\" href=\"#\"><i class=\"fa fa-user\"></i> <span>Contacts</span></a></div></nav><loading-indicator loading.bind=\"router.isNavigating || api.isRequesting\"></loading-indicator><div class=\"container\"><div class=\"row\"><contact-list class=\"col-md-4\"></contact-list><router-view class=\"col-md-8\"></router-view></div></div></template>"; });
 define('text!styles.css', ['module'], function(module) { module.exports = "body { padding-top: 70px; }\n\nsection {\n  margin: 0 20px;\n}\n\na:focus {\n  outline: none;\n}\n\n.navbar-nav li.loader {\n    margin: 12px 24px 0 6px;\n}\n\n.no-selection {\n  margin: 20px;\n}\n\n.contact-list {\n  overflow-y: auto;\n  border: 1px solid #ddd;\n  padding: 10px;\n}\n\n.panel {\n  margin: 20px;\n}\n\n.button-bar {\n  right: 0;\n  left: 0;\n  bottom: 0;\n  border-top: 1px solid #ddd;\n  background: white;\n}\n\n.button-bar > button {\n  float: right;\n  margin: 20px;\n}\n\nli.list-group-item {\n  list-style: none;\n}\n\nli.list-group-item > a {\n  text-decoration: none;\n}\n\nli.list-group-item.active > a {\n  color: white;\n}\n"; });
+define('text!contact-detail.html', ['module'], function(module) { module.exports = "<template><div class=\"panel panel-primary\"><div class=\"panel-heading\"><h3 class=\"panel-title\">Profile</h3></div><div class=\"panel-body\"><form role=\"form\" class=\"form-horizontal\"><div class=\"form-group\"><label class=\"col-sm-2 control-label\">First Name</label><div class=\"col-sm-10\"><input type=\"text\" placeholder=\"first name\" class=\"form-control\" value.bind=\"contact.firstName\"></div></div><div class=\"form-group\"><label class=\"col-sm-2 control-label\">Last Name</label><div class=\"col-sm-10\"><input type=\"text\" placeholder=\"last name\" class=\"form-control\" value.bind=\"contact.lastName\"></div></div><div class=\"form-group\"><label class=\"col-sm-2 control-label\">Email</label><div class=\"col-sm-10\"><input type=\"text\" placeholder=\"email\" class=\"form-control\" value.bind=\"contact.email\"></div></div><div class=\"form-group\"><label class=\"col-sm-2 control-label\">Phone Number</label><div class=\"col-sm-10\"><input type=\"text\" placeholder=\"phone number\" class=\"form-control\" value.bind=\"contact.phoneNumber\"></div></div></form></div></div><div class=\"button-bar\"><button class=\"btn btn-success\" click.delegate=\"save()\" disabled.bind=\"!canSave\">Save</button></div></template>"; });
+define('text!contact-list.html', ['module'], function(module) { module.exports = "<template><div class=\"contact-list\"><ul class=\"list-group\"><li repeat.for=\"contact of contacts\" class=\"list-group-item ${contact.id === $parent.selectedId ? 'active' : ''}\"><a route-href=\"route: contacts; params.bind: {id:contact.id}\" click.delegate=\"$parent.select(contact)\"><h4 class=\"list-group-item-heading\">${contact.firstName} ${contact.lastName}</h4><p class=\"list-group-item-text\">${contact.email}</p></a></li></ul></div></template>"; });
 define('text!no-selection.html', ['module'], function(module) { module.exports = "<template><div class=\"no-selection text-center\"><h2>${message}</h2></div></template>"; });
 //# sourceMappingURL=app-bundle.js.map
