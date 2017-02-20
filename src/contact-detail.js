@@ -1,10 +1,10 @@
 import {EventAggregator} from 'aurelia-event-aggregator';
-import {WebAPI} from './web-api';
+import {RealWebAPI} from './real-web-api';
 import {ContactUpdated,ContactViewed} from './messages';
 import {areEqual} from './utility';
 
 export class ContactDetail {
-  static inject = [WebAPI, EventAggregator];
+  static inject = [RealWebAPI, EventAggregator];
 
   constructor(api, ea){
     this.api = api;
@@ -27,11 +27,15 @@ export class ContactDetail {
   }
 
   save() {
-    this.api.saveContact(this.contact).then(contact => {
+    this.api.saveContact(this.contact)
+    .then(contact => {
       this.contact = contact;
       this.routeConfig.navModel.setTitle(contact.firstName);
       this.originalContact = JSON.parse(JSON.stringify(contact));
       this.ea.publish(new ContactUpdated(this.contact));
+    })
+    .catch(error => {
+        alert('Error saving contact!');
     });
   }
 

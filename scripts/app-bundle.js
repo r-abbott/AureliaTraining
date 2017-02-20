@@ -33,7 +33,7 @@ define('app',['exports', './web-api'], function (exports, _webApi) {
     return App;
   }();
 });
-define('contact-detail',['exports', 'aurelia-event-aggregator', './web-api', './messages', './utility'], function (exports, _aureliaEventAggregator, _webApi, _messages, _utility) {
+define('contact-detail',['exports', 'aurelia-event-aggregator', './real-web-api', './messages', './utility'], function (exports, _aureliaEventAggregator, _realWebApi, _messages, _utility) {
   'use strict';
 
   Object.defineProperty(exports, "__esModule", {
@@ -96,6 +96,8 @@ define('contact-detail',['exports', 'aurelia-event-aggregator', './web-api', './
         _this2.routeConfig.navModel.setTitle(contact.firstName);
         _this2.originalContact = JSON.parse(JSON.stringify(contact));
         _this2.ea.publish(new _messages.ContactUpdated(_this2.contact));
+      }).catch(function (error) {
+        alert('Error saving contact!');
       });
     };
 
@@ -121,9 +123,9 @@ define('contact-detail',['exports', 'aurelia-event-aggregator', './web-api', './
     }]);
 
     return ContactDetail;
-  }(), _class.inject = [_webApi.WebAPI, _aureliaEventAggregator.EventAggregator], _temp);
+  }(), _class.inject = [_realWebApi.RealWebAPI, _aureliaEventAggregator.EventAggregator], _temp);
 });
-define('contact-list',['exports', 'aurelia-event-aggregator', './web-api', './messages'], function (exports, _aureliaEventAggregator, _webApi, _messages) {
+define('contact-list',['exports', 'aurelia-event-aggregator', './real-web-api', './messages'], function (exports, _aureliaEventAggregator, _realWebApi, _messages) {
   'use strict';
 
   Object.defineProperty(exports, "__esModule", {
@@ -174,7 +176,7 @@ define('contact-list',['exports', 'aurelia-event-aggregator', './web-api', './me
     };
 
     return ContactList;
-  }(), _class.inject = [_webApi.WebAPI, _aureliaEventAggregator.EventAggregator], _temp);
+  }(), _class.inject = [_realWebApi.RealWebAPI, _aureliaEventAggregator.EventAggregator], _temp);
 });
 define('environment',["exports"], function (exports) {
   "use strict";
@@ -186,55 +188,6 @@ define('environment',["exports"], function (exports) {
     debug: true,
     testing: true
   };
-});
-define('loading-indicator',['exports', 'nprogress', 'aurelia-framework'], function (exports, _nprogress, _aureliaFramework) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.LoadingIndicator = undefined;
-
-  var nprogress = _interopRequireWildcard(_nprogress);
-
-  function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-      return obj;
-    } else {
-      var newObj = {};
-
-      if (obj != null) {
-        for (var key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
-        }
-      }
-
-      newObj.default = obj;
-      return newObj;
-    }
-  }
-
-  function _classCallCheck(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-      throw new TypeError("Cannot call a class as a function");
-    }
-  }
-
-  var LoadingIndicator = exports.LoadingIndicator = (0, _aureliaFramework.decorators)((0, _aureliaFramework.noView)(['nprogress/nprogress.css']), (0, _aureliaFramework.bindable)({ name: 'loading', defaultValue: false })).on(function () {
-    function _class() {
-      _classCallCheck(this, _class);
-    }
-
-    _class.prototype.loadingChanged = function loadingChanged(newValue) {
-      if (newValue) {
-        nprogress.start();
-      } else {
-        nprogress.done();
-      }
-    };
-
-    return _class;
-  }());
 });
 define('main',['exports', './environment'], function (exports, _environment) {
   'use strict';
@@ -317,6 +270,69 @@ define('no-selection',["exports"], function (exports) {
 
         this.message = "Please Select a Contact.";
     };
+});
+define('real-web-api',['exports', 'aurelia-fetch-client'], function (exports, _aureliaFetchClient) {
+    'use strict';
+
+    Object.defineProperty(exports, "__esModule", {
+        value: true
+    });
+    exports.RealWebAPI = undefined;
+
+    function _classCallCheck(instance, Constructor) {
+        if (!(instance instanceof Constructor)) {
+            throw new TypeError("Cannot call a class as a function");
+        }
+    }
+
+    var _class, _temp;
+
+    var RealWebAPI = exports.RealWebAPI = (_temp = _class = function () {
+        function RealWebAPI(http) {
+            _classCallCheck(this, RealWebAPI);
+
+            this.isRequesting = false;
+
+            http.configure(function (config) {
+                config.useStandardConfiguration().withBaseUrl('http://localhost:58554/api/contacts').withDefaults({
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+            });
+            this.client = http;
+            this.isRequesting = this.client.isRequesting;
+        }
+
+        RealWebAPI.prototype.getContactList = function getContactList() {
+            return this.client.fetch('').then(function (response) {
+                return response.json();
+            }).catch(function (error) {
+                alert('Error retrieving contact.');
+            });
+        };
+
+        RealWebAPI.prototype.getContactDetails = function getContactDetails(id) {
+            return this.client.fetch('/' + id).then(function (response) {
+                return response.json();
+            }).catch(function (error) {
+                alert('Error retrieving contact.');
+            });
+        };
+
+        RealWebAPI.prototype.saveContact = function saveContact(contact) {
+            return this.client.fetch('/' + contact.id, {
+                method: 'put',
+                body: (0, _aureliaFetchClient.json)(contact)
+            }).then(function (response) {
+                return response.json();
+            });
+        };
+
+        return RealWebAPI;
+    }(), _class.inject = [_aureliaFetchClient.HttpClient], _temp);
 });
 define('todo',["exports"], function (exports) {
     "use strict";

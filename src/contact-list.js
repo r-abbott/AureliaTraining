@@ -1,9 +1,9 @@
 import {EventAggregator} from 'aurelia-event-aggregator';
-import {WebAPI} from './web-api';
+import {RealWebAPI} from './real-web-api';
 import {ContactUpdated, ContactViewed} from './messages';
 
 export class ContactList {
-  static inject = [WebAPI, EventAggregator];
+  static inject = [RealWebAPI, EventAggregator];
 
   constructor(api, ea){
     this.api = api;
